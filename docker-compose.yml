@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n_voice_engine
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+      - TZ=Asia/Ho_Chi_Minh
+      - N8N_CORS_ENABLED=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=default
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - N8N_ENCRYPTION_KEY=WGbcmdDCcmq0kx9T3sH1QsUyH/eAu5uu
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      - ./voice_workflow.json:/tmp/voice_workflow.json
+      - ./workflow_1_phuanh_gateway.json:/tmp/workflow_1_phuanh_gateway.json
+      - ./workflow_2_dinhanh_voice_ux.json:/tmp/workflow_2_dinhanh_voice_ux.json
+      - ./workflow_3_duchue_hitl.json:/tmp/workflow_3_duchue_hitl.json
+      - ./workflow_4_vy_rag_crm.json:/tmp/workflow_4_vy_rag_crm.json

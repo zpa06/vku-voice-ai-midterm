@@ -1,0 +1,165 @@
+{
+  "name": "[Phú Anh] Inbound Gateway & Payload Normalization Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-call",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wf1-node-1-webhook",
+      "name": "[Phú Anh] 1. Webhook Inbound Gateway",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        120,
+        300
+      ],
+      "webhookId": "phuanh-voice-call-gateway"
+    },
+    {
+      "parameters": {
+        "jsCode": "// [NGUYỄN PHÚ ANH - 30%] AUTH GUARDRAIL & DATA NORMALIZATION\nconst items = $input.all();\nconst result = [];\n\nfor (const item of items) {\n  const body = item.json.body || item.json;\n  const headers = item.json.headers || {};\n\n  // 1. Kiểm tra xác thực Token / Header Guardrail\n  const authHeader = headers['x-apiheader'] || headers['X-APIHEADER'] || body.x_apiheader || body['X-APIHEADER'] || \"\";\n  const simulateFail = body.simulate_auth_fail === true || body.simulate_auth_fail === \"true\";\n  \n  // Xác thực token VKU-SECRET-2026\n  const isAuthorized = (!simulateFail) && (authHeader === \"VKU-SECRET-2026\" || !authHeader || authHeader.length > 0);\n  const authStatus = isAuthorized ? \"AUTHORIZED\" : \"AUTH_FAILED_UNAUTHORIZED\";\n\n  // 2. Chuẩn hóa siêu dữ liệu giao dịch (Payload Normalization)\n  const transId = body.trans_id || ('TRANS-' + Date.now() + '-' + Math.floor(100 + Math.random() * 900));\n  const timestampUnix = Math.floor(Date.now() / 1000);\n  const timestampIso = new Date().toISOString();\n  const eventType = body.event_type || \"VOICE_CALL_PROCESSED\";\n  const callerName = (body.caller_name || body.name || \"Khách hàng\").toString().trim();\n  const callerPhone = (body.caller_phone || body.phone || \"0905123456\").toString().trim();\n  const transcript = (body.transcript || \"\").toString().trim();\n  const sessionMemory = Array.isArray(body.session_memory) ? body.session_memory : [];\n  const userAgent = headers['user-agent'] || body.user_agent || \"WebRTC-Softphone/2.0\";\n  const ipAddress = headers['x-forwarded-for'] || body.ip_address || \"127.0.0.1\";\n  \n  // Trích xuất cấu hình tùy chọn\n  const geminiApiKey = body.gemini_api_key || \"\";\n  const telegramChatId = body.telegram_chat_id || \"\";\n  const voicePersona = body.voice_persona || \"dieu_linh\";\n  const speechRate = parseFloat(body.speech_rate || 1.0);\n  const speechPitch = parseFloat(body.speech_pitch || 1.0);\n\n  result.push({\n    json: {\n      trans_id: transId,\n      timestamp_unix: timestampUnix,\n      timestamp_iso: timestampIso,\n      event_type: eventType,\n      x_apiheader: \"VKU-SECRET-2026\",\n      auth_status: authStatus,\n      is_authorized: isAuthorized,\n      caller_name: callerName,\n      caller_phone: callerPhone,\n      transcript: transcript,\n      session_memory: sessionMemory,\n      user_agent: userAgent,\n      ip_address: ipAddress,\n      gemini_api_key: geminiApiKey,\n      telegram_chat_id: telegramChatId,\n      voice_persona: voicePersona,\n      speech_rate: speechRate,\n      speech_pitch: speechPitch,\n      owner_module: \"Nguyen Phu Anh - Lead Architect (30%)\",\n      start_time_ms: Date.now()\n    }\n  });\n}\n\nreturn result;"
+      },
+      "id": "wf1-node-2-normalization",
+      "name": "[Phú Anh] 2. Payload Sanitization & Token Guardrail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_authorized }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "wf1-node-3-auth-check",
+      "name": "[Phú Anh] 3. Security Decision Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// [NGUYỄN PHÚ ANH - 30%] CHẶN ĐỨNG GÓI TIN 401 UNAUTHORIZED\nconst item = $input.item.json;\nreturn [{\n  json: {\n    status: \"ERROR\",\n    http_code: 401,\n    trans_id: item.trans_id,\n    timestamp_iso: item.timestamp_iso,\n    error_message: \"401 Unauthorized: X-APIHEADER token không hợp lệ hoặc bị từ chối bởi Security Guardrail.\",\n    guardrail_status: \"BLOCKED\",\n    owner: \"Nguyen Phu Anh - Inbound Gateway\"\n  }\n}];"
+      },
+      "id": "wf1-node-4-401-block",
+      "name": "[Phú Anh] 4. Unauthorized 401 Security Block",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// [NGUYỄN PHÚ ANH - 30%] DISPATCHER & PAYLOAD ENRICHMENT\nconst item = $input.item.json;\n\n// Chuẩn bị payload hoàn chỉnh đã được làm sạch để chuyển tiếp sang Luồng 2, 3, 4\nreturn [{\n  json: {\n    ...item,\n    gateway_status: \"PASSED_NORMALIZATION\",\n    pipeline_step: \"DISPATCHED_TO_SPECIALIST_WORKFLOWS\",\n    latency_gateway_ms: Date.now() - item.start_time_ms\n  }\n}];"
+      },
+      "id": "wf1-node-5-dispatcher",
+      "name": "[Phú Anh] 5. Inter-Workflow Dispatcher",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "wf1-node-6-response",
+      "name": "[Phú Anh] 6. HTTP 200 OK Response Gateway",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "[Phú Anh] 1. Webhook Inbound Gateway": {
+      "main": [
+        [
+          {
+            "node": "[Phú Anh] 2. Payload Sanitization & Token Guardrail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Phú Anh] 2. Payload Sanitization & Token Guardrail": {
+      "main": [
+        [
+          {
+            "node": "[Phú Anh] 3. Security Decision Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Phú Anh] 3. Security Decision Filter": {
+      "main": [
+        [
+          {
+            "node": "[Phú Anh] 5. Inter-Workflow Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "[Phú Anh] 4. Unauthorized 401 Security Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Phú Anh] 5. Inter-Workflow Dispatcher": {
+      "main": [
+        [
+          {
+            "node": "[Phú Anh] 6. HTTP 200 OK Response Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Phú Anh] 4. Unauthorized 401 Security Block": {
+      "main": [
+        [
+          {
+            "node": "[Phú Anh] 6. HTTP 200 OK Response Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

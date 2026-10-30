@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>VKU Voice AI & Multi-Agent Call Automation Hub (n8n Powered)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-section">
+        <div class="brand-icon">🎙️</div>
+        <div class="brand-title">
+          <h1>VKU Voice AI & Multi-Agent Call Automation Hub</h1>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div id="n8nStatusBadge" class="status-badge" title="Trạng thái máy chủ n8n (Port 5678)">
+          <span class="status-dot"></span>
+          <span id="n8nStatusText">n8n Engine: ONLINE (Port 5678)</span>
+        </div>
+        <div id="sqliteStatusBadge" class="status-badge" title="Cơ sở dữ liệu SQLite CRM">
+          <span class="status-dot"></span>
+          <span id="sqliteStatusText">SQLite CRM: CONNECTED</span>
+        </div>
+        <div class="header-action-buttons">
+          <a href="http://localhost:5678" target="_blank" class="btn-header-action" title="Mở trung tâm quy trình n8n Studio">
+            <span>⚡</span> Mở n8n Studio
+          </a>
+          <a href="/api/export-csv" class="btn-header-action" title="Tải xuống báo cáo file CSV UTF-8 cho Excel">
+            <span>⬇</span> Xuất Excel / CSV
+          </a>
+          <button id="btnHeaderReset" class="btn-header-action warning" title="Khôi phục cơ sở dữ liệu về 3 bản ghi mẫu">
+            <span>🔄</span> Khôi phục mẫu
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live KPI Banner -->
+    <div class="kpi-banner">
+      <div class="kpi-card">
+        <div class="kpi-label">TỔNG CUỘC GỌI</div>
+        <div class="kpi-value" id="kpiTotalCalls">0</div>
+        <div class="kpi-sub">Lưu trữ SQLite CRM</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">TỶ LỆ THÀNH CÔNG</div>
+        <div class="kpi-value success" id="kpiSuccessRate">100%</div>
+        <div class="kpi-sub">Chuẩn HTTP 200 OK</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">ĐỘ TRỄ TRUNG BÌNH</div>
+        <div class="kpi-value warning" id="kpiAvgLatency">45 ms</div>
+        <div class="kpi-sub">Zero Network Delay</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">CHỜ QUẢN LÝ DUYỆT</div>
+        <div class="kpi-value danger" id="kpiPendingApproval">0</div>
+        <div class="kpi-sub">Human-in-the-Loop</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">ĐIỂM CHẤT LƯỢNG QA</div>
+        <div class="kpi-value info" id="kpiAvgQA">96.5</div>
+        <div class="kpi-sub">QA Agent Thang 100</div>
+      </div>
+    </div>
+
+    <!-- 3-Tab Navigation Bar -->
+    <nav class="tab-navigation">
+      <button class="nav-tab-btn active" data-tab="tab-voice-call">
+        <span>🎙️</span> Tab 1: Tổng Đài Voice AI & Multi-Agent
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-hitl-crm">
+        <span>📋</span> Tab 2: Phê Duyệt HITL & Cơ Sở Dữ Liệu CRM
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-rag-monitoring">
+        <span>📚</span> Tab 3: Kho Tri Thức RAG & Giám Sát Webhook
+      </button>
+    </nav>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="main-container">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: TỔNG ĐÀI VOICE AI & MULTI-AGENT (LIVE CALL CENTER) -->
+    <!-- ======================================================== -->
+    <div id="tab-voice-call" class="tab-content active">
+      <div class="dashboard-grid-2col">
+
+        <!-- CỘT TRÁI: SOFTPHONE ĐIỀU KHIỂN & VOICE UX -->
+        <section class="card-panel">
+          <div class="panel-header">
+            <h2><span>☎️</span> Bàn Phím Cuộc Gọi Ảo (Web Softphone)</h2>
+            <div class="memory-toggle-box">
+              <label class="switch-label">
+                <input type="checkbox" id="chkAgentMemory" checked>
+                <span class="slider round"></span>
+              </label>
+              <span class="memory-text" title="Lưu lại các câu thoại trước để AI hiểu ngữ cảnh nhiều lượt">🧠 Bộ nhớ Hội thoại (Multi-turn)</span>
+            </div>
+          </div>
+
+          <div class="softphone-form">
+            <div class="input-grid-2">
+              <div class="input-group">
+                <label for="callerName">Họ và Tên Khách Hàng</label>
+                <input type="text" id="callerName" value="Nguyễn Phú Anh" placeholder="Nhập tên khách...">
+              </div>
+              <div class="input-group">
+                <label for="callerPhone">Số Điện Thoại Liên Hệ</label>
+                <input type="tel" id="callerPhone" value="0905123456" placeholder="Nhập số điện thoại...">
+              </div>
+            </div>
+
+            <div class="input-grid-2">
+              <div class="input-group">
+                <label for="geminiApiKey">Google Gemini API Key (Tùy chọn)</label>
+                <input type="password" id="geminiApiKey" placeholder="Để trống để dùng Multi-Agent Local Engine...">
+              </div>
+              <div class="input-group">
+                <label for="telegramChatId">Telegram Chat ID (Tùy chọn)</label>
+                <input type="text" id="telegramChatId" placeholder="Ví dụ: -100123456789...">
+              </div>
+            </div>
+
+            <!-- BỘ TÙY CHỈNH GIỌNG ĐỌC AI (VOICE PERSONA) -->
+            <div class="voice-persona-box">
+              <div class="voice-persona-header">
+                <span><span>🎭</span> Giọng Trợ Lý AI (Voice Persona)</span>
+                <button id="btnTestVoice" type="button" class="btn-icon-sm" title="Nghe thử giọng mẫu">🔊 Thử giọng</button>
+              </div>
+              <div class="voice-persona-controls">
+                <div class="input-grid-2">
+                  <div class="input-group">
+                    <label for="voicePersonaSelect">Hình tượng Trợ lý</label>
+                    <select id="voicePersonaSelect" class="styled-select">
+                      <option value="dieu_linh" selected>👩 Diệu Linh (Nữ - Giọng Bắc truyền cảm, ấm áp)</option>
+                      <option value="mai_anh">👩 Mai Anh (Nữ - Giọng Nam Bộ tươi tắn, thân thiện)</option>
+                      <option value="minh_triet">👨 Minh Triết (Nam - Giọng Nam trầm ấm, đĩnh đạc)</option>
+                      <option value="gia_huy">👨 Gia Huy (Nam - Giọng Bắc thanh lịch, chuyên nghiệp)</option>
+                    </select>
+                  </div>
+                  <div class="input-group">
+                    <label for="ttsEngineSelect">Bộ máy Phát âm (TTS Engine)</label>
+                    <select id="ttsEngineSelect" class="styled-select">
+                      <option value="google" selected>✨ Google Voice AI (Chuẩn Tiếng Việt Tự Nhiên 100%)</option>
+                      <option value="browser">🖥️ Web Speech API (Giọng Trình duyệt Nội bộ)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="sliders-row">
+                  <div class="slider-group">
+                    <div class="slider-label">
+                      <span>Tốc độ:</span>
+                      <strong id="rateValue">1.0x</strong>
+                    </div>
+                    <input type="range" id="speechRate" min="0.75" max="1.35" step="0.05" value="1.0">
+                  </div>
+                  <div class="slider-group">
+                    <div class="slider-label">
+                      <span>Cao độ (Tone):</span>
+                      <strong id="pitchValue">1.0</strong>
+                    </div>
+                    <input type="range" id="speechPitch" min="0.6" max="1.4" step="0.05" value="1.0">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Nút Microphone lớn trung tâm -->
+            <div class="mic-action-area">
+              <div class="mic-button-wrapper">
+                <button id="btnMic" class="mic-button" title="Bấm để nói tiếng Việt trực tiếp">
+                  🎙️
+                </button>
+                <div class="pulse-wave wave-1"></div>
+                <div class="pulse-wave wave-2"></div>
+              </div>
+              <div id="micLabel" class="mic-label">Bấm Mic để Nói Tiếng Việt với AI</div>
+            </div>
+
+            <!-- Khung văn bản giọng nói -->
+            <div class="input-group">
+              <div class="label-with-action">
+                <label for="transcriptInput">Nội dung lời thoại (Live Transcript)</label>
+                <button id="btnClearTranscript" class="btn-link-action">Xóa</button>
+              </div>
+              <textarea id="transcriptInput" rows="3" placeholder="Lời nói thu qua Mic sẽ hiển thị ở đây (hoặc gõ trực tiếp nội dung để gọi)..."></textarea>
+            </div>
+
+            <!-- 5 Nút Kịch bản Mẫu 1-Click -->
+            <div class="presets-section">
+              <div class="presets-title">⚡ Kịch bản Kiểm thử Nghiệp vụ 1-Click:</div>
+              <div class="preset-buttons-grid">
+                <button class="btn-preset preset-booking" data-preset="1" title="Đặt bàn ăn 4 người - Tự động duyệt 100%">
+                  <strong>[1] Đặt bàn tối (4 khách)</strong>
+                  <small>✓ Tự động duyệt</small>
+                </button>
+                <button class="btn-preset preset-vip" data-preset="2" title="Đặt phòng VIP 20 khách - Phân luồng Quản lý duyệt">
+                  <strong>[2] Tiệc VIP (20 khách)</strong>
+                  <small>⚠️ Quản lý duyệt (HITL)</small>
+                </button>
+                <button class="btn-preset preset-complaint" data-preset="3" title="Khiếu nại sai món - Khẩn cấp SLA 15 phút">
+                  <strong>[3] Khiếu nại dịch vụ</strong>
+                  <small>🚨 Khẩn cấp SLA 15m</small>
+                </button>
+                <button class="btn-preset preset-inquiry" data-preset="4" title="Hỏi giá khám nha khoa & giờ trống - Tra cứu RAG">
+                  <strong>[4] Bảng giá & Giờ trống</strong>
+                  <small>🔍 Tra cứu RAG</small>
+                </button>
+                <button class="btn-preset preset-security" data-preset="5" title="Gửi gói tin sai X-APIHEADER để kiểm thử chặn bảo mật">
+                  <strong>[5] Chặn Bảo Mật</strong>
+                  <small>🛡️ Test 401 Guardrail</small>
+                </button>
+              </div>
+            </div>
+
+            <button id="btnSendCall" class="btn-primary-large">
+              <span>🚀</span> Gửi Cuộc Gọi vào n8n Webhook Engine
+            </button>
+          </div>
+
+          <!-- Lịch sử hội thoại nhiều lượt (Multi-turn Chat) -->
+          <div class="chat-stream-box">
+            <div class="chat-stream-header">
+              <span>💬 Lịch sử Cuộc Gọi Thời Gian Thực (Multi-turn Stream)</span>
+              <button id="btnClearChat" class="btn-link-action">Xóa lịch sử</button>
+            </div>
+            <div id="chatMessageList" class="chat-message-list">
+              <div class="chat-bubble ai">
+                <div class="bubble-sender">🤖 Trợ lý AI (Tổng đài VKU)</div>
+                <div class="bubble-content">Xin chào anh Nguyễn Phú Anh! Em là trợ lý ảo thông minh. Em có thể hỗ trợ anh đặt bàn ăn, phòng tiệc VIP, tư vấn bảng giá nha khoa hoặc tiếp nhận khiếu nại ạ!</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- CỘT PHẢI: PIPELINE 7 BƯỚC & KẾT QUẢ MULTI-AGENT -->
+        <section class="card-panel">
+          <div class="panel-header">
+            <h2><span>⚡</span> Tiến Trình Điều Phối 7 Bước (Workflow Engine)</h2>
+            <div id="pipelineStatusBadge" class="badge-tag badge-inquiry">SẴN SÀNG</div>
+          </div>
+
+          <!-- Pipeline Visualizer -->
+          <div class="pipeline-container">
+            <div class="pipeline-steps-wrapper">
+              <div class="pipeline-step-node" id="stepNode1">
+                <div class="node-circle">1</div>
+                <div class="node-label">Webhook Trigger</div>
+              </div>
+              <div class="pipeline-connector"></div>
+              <div class="pipeline-step-node" id="stepNode2">
+                <div class="node-circle">2</div>
+                <div class="node-label">Auth & Guardrail</div>
+              </div>
+              <div class="pipeline-connector"></div>
+              <div class="pipeline-step-node" id="stepNode3">
+                <div class="node-circle">3</div>
+                <div class="node-label">RAG & Memory</div>
+              </div>
+              <div class="pipeline-connector"></div>
+              <div class="pipeline-step-node" id="stepNode4">
+                <div class="node-circle">4</div>
+                <div class="node-label">Multi-Agent</div>
+              </div>
+              <div class="pipeline-connector"></div>
+              <div class="pipeline-step-node" id="stepNode5">
+                <div class="node-circle">5</div>
+                <div class="node-label">Decision Router</div>
+              </div>
+              <div class="pipeline-connector"></div>
+              <div class="pipeline-step-node" id="stepNode6">
+                <div class="node-circle">6</div>
+                <div class="node-label">Action / HITL</div>
+              </div>
+              <div class="pipeline-connector"></div>
+              <div class="pipeline-step-node" id="stepNode7">
+                <div class="node-circle">7</div>
+                <div class="node-label">SQLite & HTTP 200</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BẢNG ĐIỀU PHỐI 3 AGENT CHUYÊN BIỆT -->
+          <div class="multi-agent-results-box">
+            <div class="results-header">
+              <h3>🤖 Kết Quả Phân Tích Của Hệ Thống Multi-Agent:</h3>
+              <span id="aiEngineBadge" class="engine-indicator">MULTI-AGENT LOCAL ENGINE</span>
+            </div>
+
+            <div class="agent-cards-grid">
+              <!-- Agent 1: Router Agent -->
+              <div class="agent-card">
+                <div class="agent-card-title">
+                  <span>🧭</span> Agent 1: Router & Intent
+                </div>
+                <div class="agent-metrics">
+                  <div class="metric-row">
+                    <span class="m-label">Ý định (Intent):</span>
+                    <strong id="techIntent" class="text-cyan">INQUIRY</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Cảm xúc:</span>
+                    <strong id="techSentiment" class="text-green">NEUTRAL</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Mức khẩn cấp:</span>
+                    <strong id="techUrgency" class="text-amber">LOW</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Độ tin cậy:</span>
+                    <strong id="techConfidence">96%</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Agent 2: RAG & Specialist Agent -->
+              <div class="agent-card">
+                <div class="agent-card-title">
+                  <span>📑</span> Agent 2: RAG & Specialist
+                </div>
+                <div class="agent-metrics">
+                  <div class="metric-row">
+                    <span class="m-label">Thời gian:</span>
+                    <strong id="techTime">19h00 tối nay</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Số khách:</span>
+                    <strong id="techPartySize">4 người</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Dịch vụ:</span>
+                    <strong id="techService">Nhà hàng Tiêu chuẩn</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">RAG Trích xuất:</span>
+                    <span id="techRagTopic" class="text-truncate">Bảng giá đặt bàn</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Agent 3: Call Quality QA Agent -->
+              <div class="agent-card">
+                <div class="agent-card-title">
+                  <span>🛡️</span> Agent 3: Call Quality QA
+                </div>
+                <div class="agent-metrics">
+                  <div class="metric-row">
+                    <span class="m-label">Điểm chất lượng:</span>
+                    <strong id="techQaScore" class="text-cyan">98 / 100</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Kịch bản:</span>
+                    <strong class="text-green">✓ Đạt chuẩn 100%</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Guardrail:</span>
+                    <strong id="techGuardrail" class="text-green">✓ AN TOÀN</strong>
+                  </div>
+                  <div class="metric-row">
+                    <span class="m-label">Thời gian n8n:</span>
+                    <strong id="techLatency">45 ms</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hộp Phản hồi Giọng nói (Voice Reply Box) -->
+            <div id="voiceReplyBox" class="voice-reply-card">
+              <div class="voice-card-header">
+                <div class="voice-avatar">🤖</div>
+                <div class="voice-meta">
+                  <div class="voice-name">Câu Thoại Phản Hồi Giọng Nói Của AI:</div>
+                  <div class="voice-sub">Phát âm chuẩn ngữ điệu Tiếng Việt tự nhiên</div>
+                </div>
+                <div class="voice-actions">
+                  <button id="btnReplayAudio" class="btn-action-sm"><span>🔊</span> Phát lại</button>
+                  <button id="btnStopAudio" class="btn-action-sm danger"><span>⏹</span> Dừng</button>
+                </div>
+              </div>
+              <div id="voiceReplyText" class="voice-text-content">
+                "Dạ chào anh Nguyễn Phú Anh! Em đã ghi nhận lịch hẹn của mình thành công ạ!"
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: PHÊ DUYỆT HUMAN-IN-THE-LOOP & CƠ SỞ DỮ LIỆU CRM -->
+    <!-- ======================================================== -->
+    <div id="tab-hitl-crm" class="tab-content">
+      <div class="hitl-crm-container">
+
+        <!-- KHUNG HÀNG ĐỢI PHÊ DUYỆT HUMAN-IN-THE-LOOP -->
+        <section class="card-panel">
+          <div class="panel-header">
+            <h2><span>👥</span> Hàng Đợi Quản Lý Phê Duyệt (Human-in-the-Loop Queue)</h2>
+            <div class="header-badges">
+              <span id="approvalCountBadge" class="badge-tag badge-vip">0 Ca Chờ Duyệt</span>
+              <span class="badge-tag badge-inquiry">SLA: 15 Phút Khẩn Cấp</span>
+            </div>
+          </div>
+          <p class="panel-description">
+            Cơ chế bảo vệ doanh nghiệp theo <strong>The No-Code Playbook</strong>: Các ca Khiếu nại dịch vụ hoặc Đặt tiệc VIP công ty quy mô lớn bắt buộc phải có sự thẩm định và phê duyệt của Quản lý trước khi xác nhận vào CRM.
+          </p>
+          <div id="approvalQueueList" class="approval-cards-list">
+            <!-- Thẻ chờ duyệt sẽ được render động ở đây -->
+          </div>
+        </section>
+
+        <!-- BẢNG DỮ LIỆU THỰC TẾ SQLITE CRM -->
+        <section class="card-panel">
+          <div class="panel-header">
+            <h2><span>🗄️</span> Cơ Sở Dữ Liệu Hồ Sơ Cuộc Gọi (SQLite CRM Storage)</h2>
+            <div class="table-actions-group">
+              <div class="filter-group">
+                <label for="crmFilterIntent">Lọc Intent:</label>
+                <select id="crmFilterIntent" class="styled-select-sm">
+                  <option value="ALL">Tất cả Ý định</option>
+                  <option value="BOOKING">BOOKING (Đặt bàn)</option>
+                  <option value="VIP_BOOKING">VIP_BOOKING (Tiệc VIP)</option>
+                  <option value="COMPLAINT">COMPLAINT (Khiếu nại)</option>
+                  <option value="INQUIRY">INQUIRY (Hỏi đáp)</option>
+                </select>
+              </div>
+              <a href="/api/export-csv" class="btn-action-sm success" download>
+                <span>⬇</span> Tải Báo Cáo Excel / CSV
+              </a>
+              <button id="btnReloadCRM" class="btn-action-sm"><span>🔄</span> Làm mới</button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="crm-data-table">
+              <thead>
+                <tr>
+                  <th>Mã Giao Dịch</th>
+                  <th>Thời Gian</th>
+                  <th>Khách Hàng</th>
+                  <th>Số Điện Thoại</th>
+                  <th>Ý Định (Intent)</th>
+                  <th>Thời Gian Hẹn</th>
+                  <th>Số Khách</th>
+                  <th>Điểm QA</th>
+                  <th>Trạng Thái Phê Duyệt</th>
+                  <th>Độ Trễ</th>
+                </tr>
+              </thead>
+              <tbody id="crmTableBody">
+                <!-- Dữ liệu SQLite sẽ hiển thị ở đây -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: KHO TRI THỨC RAG & GIÁM SÁT KỸ THUẬT WEBHOOK -->
+    <!-- ======================================================== -->
+    <div id="tab-rag-monitoring" class="tab-content">
+      <div class="monitoring-grid">
+
+        <!-- BẢNG HIỂN THỊ KHO TRI THỨC RAG -->
+        <section class="card-panel">
+          <div class="panel-header">
+            <h2><span>📚</span> Kho Tri Thức Nội Bộ (RAG Knowledge Base)</h2>
+            <span class="badge-tag badge-booking">RAG RETRIEVAL ACTIVE</span>
+          </div>
+          <div class="rag-docs-grid">
+            <div class="rag-doc-card">
+              <div class="rag-doc-title">🍽️ Dịch vụ Đặt Bàn Tiêu Chuẩn</div>
+              <p>Sức chứa: 1 đến 8 người. Miễn phí cọc bàn. Thực đơn gọi món Á - Âu từ 150.000đ/người. Bàn được giữ tối đa 15 phút sau giờ hẹn.</p>
+              <div class="rag-doc-meta">Phân loại: BOOKING • Tự động phê duyệt</div>
+            </div>
+            <div class="rag-doc-card vip">
+              <div class="rag-doc-title">👑 Phòng Tiệc VIP & Sự Kiện Công Ty</div>
+              <p>Sức chứa: 10 đến 50 người. Phụ phí phòng VIP riêng 500.000đ/buổi. Set menu thượng hạng từ 350.000đ/khách. Bắt buộc Quản lý duyệt và cọc 30%.</p>
+              <div class="rag-doc-meta">Phân loại: VIP_BOOKING • Yêu cầu Human-in-the-loop</div>
+            </div>
+            <div class="rag-doc-card">
+              <div class="rag-doc-title">🦷 Khám Nha Khoa Tổng Quát & Thẩm Mỹ</div>
+              <p>Chi phí khám & tư vấn: 200.000đ - 500.000đ/lượt. Bác sĩ chuyên khoa Răng Hàm Mặt. Giờ làm việc: 08:00 - 20:00 hàng ngày.</p>
+              <div class="rag-doc-meta">Phân loại: INQUIRY • Tư vấn & Đặt hẹn</div>
+            </div>
+            <div class="rag-doc-card danger">
+              <div class="rag-doc-title">🚨 Chính Sách Xử Lý Khiếu Nại & Hoàn Tiền</div>
+              <p>SLA xử lý khẩn cấp trong vòng 15 phút. Hoàn tiền 100% nếu phát hiện sai sót món ăn hoặc dịch vụ. Ban Quản lý trực tiếp giải quyết.</p>
+              <div class="rag-doc-meta">Phân loại: COMPLAINT • Cảnh báo khẩn cấp Telegram</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BẢNG CHUẨN KỸ THUẬT FALCONIDE WEBHOOK & THANH TRA GÓI TIN -->
+        <section class="card-panel">
+          <div class="panel-header">
+            <h2><span>🛰️</span> Giám Sát Chuẩn Webhook & Thanh Tra JSON</h2>
+            <div class="tab-pill-group">
+              <button id="tabBtnRequest" class="tab-pill-btn active">HTTP Request</button>
+              <button id="tabBtnResponse" class="tab-pill-btn">HTTP 200 Response</button>
+              <button id="tabBtnDocs" class="tab-pill-btn">Chuẩn Falconide</button>
+            </div>
+          </div>
+
+          <div id="inspectorContent" class="inspector-box">
+            <div class="inspector-toolbar">
+              <span id="inspectorMetaText" class="inspector-meta">Gói tin JSON HTTP POST</span>
+              <button id="btnCopyJson" class="btn-link-action">📋 Sao chép JSON</button>
+            </div>
+            <pre id="payloadViewer" class="code-viewer">// Đang chờ cuộc gọi đầu tiên...</pre>
+          </div>
+
+          <!-- Bảng Chuẩn Falconide Webhook Specification (Ẩn/Hiện) -->
+          <div id="falconideSpecsBox" class="falconide-specs-box" style="display: none;">
+            <table class="specs-table">
+              <thead>
+                <tr>
+                  <th>Tham Số Webhook</th>
+                  <th>Định Dạng</th>
+                  <th>Giá Trị Mẫu</th>
+                  <th>Mô Tả Tiêu Chuẩn</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>TRANSID</code></td>
+                  <td>Chuỗi duy nhất</td>
+                  <td><code>TRANS-1792102001-101</code></td>
+                  <td>Mã định danh duy nhất cuộc gọi phục vụ truy vết</td>
+                </tr>
+                <tr>
+                  <td><code>EVENT</code></td>
+                  <td>Chuỗi ký tự</td>
+                  <td><code>VOICE_CALL_PROCESSED</code></td>
+                  <td>Loại sự kiện nghiệp vụ theo Webhook Guide</td>
+                </tr>
+                <tr>
+                  <td><code>X-APIHEADER</code></td>
+                  <td>Header bảo mật</td>
+                  <td><code>VKU-SECRET-2026</code></td>
+                  <td>Xác thực nguồn gọi, chống giả mạo Webhook</td>
+                </tr>
+                <tr>
+                  <td><code>TIMESTAMP</code></td>
+                  <td>Unix / ISO 8601</td>
+                  <td><code>1792102001 / 2026-10-15T...</code></td>
+                  <td>Thời điểm cuộc gọi xảy ra chính xác tới mili-giây</td>
+                </tr>
+                <tr>
+                  <td><code>HTTP 200 OK</code></td>
+                  <td>Mã phản hồi</td>
+                  <td><code>HTTP 200 OK &lt; 60s</code></td>
+                  <td>Phản hồi tức thì, bảo toàn kết nối</td>
+                </tr>
+                <tr>
+                  <td><code>Auto-Retry</code></td>
+                  <td>Cơ chế thử lại</td>
+                  <td><code>Max 5 Retries (Backoff)</code></td>
+                  <td>Chống nghẽn mạng và tự phục hồi khi n8n bận</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Live Terminal Event Log -->
+          <div class="terminal-box">
+            <div class="terminal-header">
+              <span>🖥️ Nhật Ký Sự Kiện Hệ Thống (Live Terminal Log)</span>
+              <button id="btnClearLogs" class="btn-link-action">Xóa log</button>
+            </div>
+            <div id="logTerminal" class="terminal-body">
+              <!-- Log entries -->
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

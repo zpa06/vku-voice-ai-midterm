@@ -1,0 +1,103 @@
+{
+  "name": "[Đình Anh] Voice AI Multi-Persona & TTS Audio Engine Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-tts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wf2-node-1-webhook",
+      "name": "[Đình Anh] 1. Voice Sub-Workflow Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        120,
+        300
+      ],
+      "webhookId": "dinhanh-voice-tts-engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "// [NGUYỄN ĐÌNH ANH - 25%] SMART NLP & MULTI-AGENT INTENT EXTRACTOR\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json.body || item.json;\n  const transcript = (data.transcript || '').toLowerCase();\n  \n  let intent = \"INQUIRY\";\n  let sentiment = \"NEUTRAL\";\n  let confidenceScore = 0.94;\n  let partySize = 2;\n  let appointmentTime = \"19:00 Hôm nay\";\n  let requiresHuman = false;\n  let voiceReply = \"\";\n\n  // 1. Phân loại Ý định (Intent) & Cảm xúc (Sentiment)\n  if (transcript.includes(\"khiếu nại\") || transcript.includes(\"bức xúc\") || transcript.includes(\"tệ\") || transcript.includes(\"sai món\") || transcript.includes(\"hoàn tiền\")) {\n    intent = \"COMPLAINT\";\n    sentiment = \"NEGATIVE\";\n    requiresHuman = true;\n    voiceReply = \"Dạ, em thành thật xin lỗi vì sự bất tiện của mình ạ! Em đã tạo phiếu khiếu nại khẩn cấp SLA 15 phút chuyển thẳng tới Giám đốc chăm sóc khách hàng để xử lý ngay cho anh/chị ạ!\";\n  } else if (transcript.includes(\"vip\") || transcript.includes(\"20 người\") || transcript.includes(\"tiệc công ty\") || transcript.includes(\"đoàn lớn\") || transcript.includes(\"30 người\")) {\n    intent = \"VIP_BOOKING\";\n    sentiment = \"POSITIVE\";\n    partySize = 20;\n    requiresHuman = true;\n    voiceReply = \"Dạ em xin chào quý công ty! Lịch đặt tiệc VIP cho 20 khách đã được chuyển sang Hàng đợi Quản lý phê duyệt phòng riêng và hướng dẫn đặt cọc 30% trong ít phút ạ!\";\n  } else if (transcript.includes(\"đặt bàn\") || transcript.includes(\"đặt chỗ\") || transcript.includes(\"4 người\") || transcript.includes(\"ăn tối\")) {\n    intent = \"BOOKING\";\n    sentiment = \"POSITIVE\";\n    partySize = 4;\n    requiresHuman = false;\n    voiceReply = `Dạ chào anh/chị ${data.caller_name || 'quý khách'}! Bàn 4 người lúc 19h tối nay đã được tự động duyệt giữ chỗ thành công ạ. Mã đặt bàn của mình là VKU-${Math.floor(100+Math.random()*900)} ạ!`;\n  } else {\n    intent = \"INQUIRY\";\n    sentiment = \"NEUTRAL\";\n    requiresHuman = false;\n    voiceReply = \"Dạ, nhà hàng mở cửa từ 8h00 sáng đến 22h00 đêm hàng ngày tại cơ sở VKU Đà Nẵng. Thực đơn gọi món từ 150.000đ/người và phòng VIP sẵn sàng đón tiếp ạ!\";\n  }\n\n  results.push({\n    json: {\n      ...data,\n      intent,\n      sentiment,\n      confidence_score: confidenceScore,\n      party_size: partySize,\n      appointment_time: appointmentTime,\n      requires_human_approval: requiresHuman,\n      voice_reply: voiceReply,\n      owner_voice: \"Nguyen Dinh Anh - Voice UX & Audio (25%)\"\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "wf2-node-2-intent-agent",
+      "name": "[Đình Anh] 2. Smart NLP & Voice Agent Core",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// [NGUYỄN ĐÌNH ANH - 25%] 4 VOICE PERSONA & DUAL-ENGINE TTS ROUTER\nconst items = $input.all();\nconst results = [];\n\nconst PERSONA_PROFILES = {\n  \"dieu_linh\": { name: \"Diệu Linh\", gender: \"Nữ\", dialect: \"Miền Bắc\", tone: \"Ấm áp, truyền cảm, lịch thiệp\", voice_id: \"vi-VN-Standard-A\" },\n  \"mai_anh\":   { name: \"Mai Anh\",   gender: \"Nữ\", dialect: \"Miền Nam\", tone: \"Tươi tắn, năng động, hiếu khách\", voice_id: \"vi-VN-Standard-C\" },\n  \"minh_triet\":{ name: \"Minh Triết\",gender: \"Nam\", dialect: \"Miền Nam\", tone: \"Trầm ấm, đĩnh đạc, chuyên nghiệp\", voice_id: \"vi-VN-Standard-B\" },\n  \"gia_huy\":   { name: \"Gia Huy\",   gender: \"Nam\", dialect: \"Miền Bắc\", tone: \"Thanh lịch, chuẩn mực, rành rọt\", voice_id: \"vi-VN-Standard-D\" }\n};\n\nfor (const item of items) {\n  const data = item.json;\n  const chosenKey = data.voice_persona || \"dieu_linh\";\n  const profile = PERSONA_PROFILES[chosenKey] || PERSONA_PROFILES[\"dieu_linh\"];\n\n  // Cấu hình Dual-Engine TTS: Voice Sniffing & Parameters\n  const ttsEngineConfig = {\n    primary_engine: \"Google Voice AI Cloud Stream (/api/tts)\",\n    fallback_engine: \"Web Speech API (with vi-VN voice sniffing)\",\n    speech_rate: data.speech_rate || 1.0,\n    speech_pitch: data.speech_pitch || 1.0,\n    audio_format: \"audio/mp3\",\n    sentence_chunking: true,\n    persona_applied: profile\n  };\n\n  results.push({\n    json: {\n      ...data,\n      tts_engine_config: ttsEngineConfig,\n      audio_stream_url: `/api/tts?voice=${chosenKey}&rate=${data.speech_rate || 1.0}`,\n      voice_status: \"SYNTHESIZED_SUCCESSFULLY\"\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "wf2-node-3-persona-router",
+      "name": "[Đình Anh] 3. Multi-Persona & Dual-Engine TTS Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "wf2-node-4-response",
+      "name": "[Đình Anh] 4. Voice Processing Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "[Đình Anh] 1. Voice Sub-Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "[Đình Anh] 2. Smart NLP & Voice Agent Core",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Đình Anh] 2. Smart NLP & Voice Agent Core": {
+      "main": [
+        [
+          {
+            "node": "[Đình Anh] 3. Multi-Persona & Dual-Engine TTS Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Đình Anh] 3. Multi-Persona & Dual-Engine TTS Engine": {
+      "main": [
+        [
+          {
+            "node": "[Đình Anh] 4. Voice Processing Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

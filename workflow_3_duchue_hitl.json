@@ -1,0 +1,141 @@
+{
+  "name": "[Đức Huế] Human-in-the-Loop & Telegram Escalation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hitl-escalation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wf3-node-1-webhook",
+      "name": "[Đức Huế] 1. HITL Escalation Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        120,
+        300
+      ],
+      "webhookId": "duchue-hitl-escalation-gate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.requires_human_approval }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "wf3-node-2-risk-router",
+      "name": "[Đức Huế] 2. Risk Evaluation & HITL Gate (IF)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// [LÊ ĐỨC HUẾ - 25%] HITL TICKET GENERATOR & TELEGRAM EMERGENCY ALERT\nconst item = $input.item.json;\n\nconst isComplaint = item.intent === 'COMPLAINT' || item.sentiment === 'NEGATIVE';\nconst priority = isComplaint ? \"CRITICAL_SLA_15MIN\" : \"HIGH_PRIORITY_VIP\";\nconst approvalQueueId = \"HITL-\" + Date.now().toString().slice(-6);\n\n// Cấu trúc bản tin cảnh báo gửi Telegram\nconst telegramMessage = `🚨 [VKU VOICE AI - CẢNH BÁO KHẨN CẤP SLA 15 PHÚT]\n━━━━━━━━━━━━━━━━━━━━\nMã Giao Dịch: ${item.trans_id}\nHọ Tên: ${item.caller_name}\nSố Điện Thoại: ${item.caller_phone}\nÝ Định: ${item.intent} (${item.sentiment})\nLý Do HITL: ${isComplaint ? \"Khiếu nại gay gắt - Yêu cầu hoàn tiền khẩn cấp\" : \"Đặt tiệc VIP quy mô lớn (\" + item.party_size + \" khách)\"}\nHạn Định SLA: 15 Phút Khẩn Cấp\n━━━━━━━━━━━━━━━━━━━━\n👉 Thẩm quyền: Vui lòng truy cập Tab 2 để Phê duyệt hoặc Từ chối!`;\n\nreturn [{\n  json: {\n    ...item,\n    approval_status: \"PENDING_MANAGER_APPROVAL\",\n    hitl_ticket_id: approvalQueueId,\n    hitl_priority: priority,\n    sla_minutes: 15,\n    telegram_alert_sent: Boolean(item.telegram_chat_id),\n    telegram_payload: telegramMessage,\n    action_gate_decision: \"HELD_FOR_HUMAN_APPROVAL\",\n    owner_hitl: \"Le Duc Hue - QA & HITL Specialist (25%)\"\n  }\n}];"
+      },
+      "id": "wf3-node-3-hitl-ticket",
+      "name": "[Đức Huế] 3. HITL Ticket & Telegram SLA 15m Formatter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// [LÊ ĐỨC HUẾ - 25%] AUTONOMOUS INSTANT APPROVAL ACTION\nconst item = $input.item.json;\nconst bookingCode = \"VKU-TABLE-\" + Math.floor(1000 + Math.random() * 9000);\n\nreturn [{\n  json: {\n    ...item,\n    approval_status: \"AUTO_APPROVED\",\n    booking_code: bookingCode,\n    action_gate_decision: \"AUTOMATICALLY_APPROVED_ZERO_LATENCY\",\n    owner_hitl: \"Le Duc Hue - QA & HITL Specialist (25%)\"\n  }\n}];"
+      },
+      "id": "wf3-node-4-auto-approve",
+      "name": "[Đức Huế] 4. Autonomous Approval Action Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "wf3-node-5-response",
+      "name": "[Đức Huế] 5. HITL Decision Response Gateway",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        920,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "[Đức Huế] 1. HITL Escalation Trigger": {
+      "main": [
+        [
+          {
+            "node": "[Đức Huế] 2. Risk Evaluation & HITL Gate (IF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Đức Huế] 2. Risk Evaluation & HITL Gate (IF)": {
+      "main": [
+        [
+          {
+            "node": "[Đức Huế] 3. HITL Ticket & Telegram SLA 15m Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "[Đức Huế] 4. Autonomous Approval Action Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Đức Huế] 3. HITL Ticket & Telegram SLA 15m Formatter": {
+      "main": [
+        [
+          {
+            "node": "[Đức Huế] 5. HITL Decision Response Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Đức Huế] 4. Autonomous Approval Action Gate": {
+      "main": [
+        [
+          {
+            "node": "[Đức Huế] 5. HITL Decision Response Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

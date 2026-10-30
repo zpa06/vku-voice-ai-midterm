@@ -1,0 +1,47 @@
+{
+  "business_info": {
+    "name": "Nhà Hàng & Trung Tâm Hội Nghị - Nha Khoa Quốc Tế VKU",
+    "hotline": "1900 8888",
+    "address": "Khu Đô thị Đại học Đà Nẵng, Đường Nam Kỳ Khởi Nghĩa, Ngũ Hành Sơn, Đà Nẵng",
+    "operating_hours": "08:00 - 22:00 tất cả các ngày trong tuần (kể cả Lễ, Tết)"
+  },
+  "services": [
+    {
+      "id": "SVC-01",
+      "name": "Đặt bàn Nhà hàng Tiêu chuẩn",
+      "category": "BOOKING",
+      "capacity": "1 đến 8 người",
+      "deposit_required": false,
+      "price_description": "Miễn phí đặt cọc, thực đơn gọi món Á - Âu từ 150.000đ/người",
+      "policy": "Giữ bàn tối đa 15 phút sau giờ hẹn. Tự động phê duyệt ngay lập tức."
+    },
+    {
+      "id": "SVC-02",
+      "name": "Phòng VIP & Tiệc Công ty Sự kiện",
+      "category": "VIP_BOOKING",
+      "capacity": "10 đến 50 người",
+      "deposit_required": true,
+      "price_description": "Phụ phí phòng VIP riêng 500.000đ/buổi, Set menu từ 350.000đ/người",
+      "policy": "Bắt buộc có sự phê duyệt của Ban Quản lý (Human-in-the-Loop). Cọc 30% giá trị tiệc trước 24h."
+    },
+    {
+      "id": "SVC-03",
+      "name": "Khám Nha Khoa Tổng Quát & Thẩm Mỹ",
+      "category": "INQUIRY",
+      "capacity": "Khám theo từng ca hẹn",
+      "deposit_required": false,
+      "price_description": "Khám và tư vấn chuyên sâu 200.000đ - 500.000đ/lượt. Bác sĩ Chuyên khoa Răng Hàm Mặt trực tiếp thăm khám.",
+      "policy": "Thời gian khám từ 08:00 đến 20:00 hàng ngày. Đặt hẹn trước được ưu tiên không phải chờ đợi."
+    }
+  ],
+  "complaint_policy": {
+    "sla_minutes": 15,
+    "handling_team": "Trưởng ca CSKH & Ban Quản lý Khẩn cấp",
+    "compensation_policy": "Hoàn tiền 100% nếu phát hiện sai sót chất lượng món ăn hoặc lỗi phục vụ. Tặng voucher giảm giá 20% cho lần sử dụng kế tiếp.",
+    "escalation_rule": "Bắt buộc chuyển trực tiếp vào Hàng đợi Phê duyệt Quản lý (HITL Queue) và gửi cảnh báo khẩn cấp tới Trưởng nhóm qua Telegram."
+  },
+  "available_time_slots": {
+    "today": ["09:00", "10:30", "14:00", "18:30", "19:00", "20:00"],
+    "tomorrow": ["08:30", "09:30", "11:00", "14:30", "18:00", "19:30", "20:30"]
+  }
+}
